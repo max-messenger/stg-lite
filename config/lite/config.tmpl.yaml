@@ -1,0 +1,44 @@
+app:
+  hostname: ${HOSTNAME:"lite"}
+
+logger:
+  level: info
+  format: json
+
+servers:
+  http:
+    addr: :8080
+  system:
+    addr: :23569
+
+maxbot:
+  token: ${MAXBOT_TOKEN:"token"}
+  url: ${MAXBOT_URL:"http://localhost:8080"}
+  path: ${MAXBOT_PATH:"/webhook"}
+  subscription_type: ${MAXBOT_SUBSCRIPTION_TYPE:"poll"}
+  types: # в рамках одной подписки не больше 14 шт.
+    - message_created
+    - message_callback
+    - message_edited
+    - message_removed
+    - bot_added
+    - bot_removed
+    - user_added
+    - bot_started
+    - bot_stopped
+
+redis:
+  key_prefix: "lite"
+  addrs: ['${REDIS_ADDRS:"127.0.0.1:6379"}']
+
+postgres-sel: 
+  database_url: ${POSTGRES_CONNECTION_STRING_SEL:"postgres://postgres:postgres@localhost:5432/lite?default_query_exec_mode=exec"}
+postgres-upd: 
+  database_url: ${POSTGRES_CONNECTION_STRING_UPD:"postgres://postgres:postgres@localhost:5432/lite?default_query_exec_mode=exec"}
+
+telemetry:
+  collector:
+    enabled: true
+    endpoint: localhost:4317
+    endpoint_type: grpc
+    sampling_ratio: 1

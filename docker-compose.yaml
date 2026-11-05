@@ -1,0 +1,90 @@
+services:
+  redis:
+    container_name: lite_redis
+    image: redis
+    environment:
+      ALLOW_EMPTY_PASSWORD: yes
+      REDIS_PASSWORD: password
+      REDIS_AOF_ENABLED: no
+    ports:
+      - 6379:6379
+ 
+  redisinsight:
+    container_name: lite_redisinsight
+    image: redis/redisinsight
+    ports:
+      - 5540:5540
+
+  postgres:
+    container_name: lite_postgres
+    image: postgres:18.4-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: lite
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 2s
+
+  pgadmin:
+    container_name: lite_pgadmin
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    ports:
+     - 8091:80
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  tempo:
+    image: grafana/tempo:main-ef79efc
+    container_name: lite_tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./config/dockercompose/tempo/tempo.yaml:/etc/tempo.yaml
+    ports:
+      - "3200:3200"      # Tempo API
+      - "9095:9095"      # Tempo metrics
+      - "4317:4317"      # OTLP gRPC receiver
+
+  prometheus:
+    image: prom/prometheus
+    container_name: lite_prometheus
+    volumes:
+      - ./config/dockercompose/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - '9090:9090'
+  
+  grafana:
+    image: grafana/grafana
+    container_name: lite_grafana
+    ports:
+      - 3000:3000
+    volumes:
+      - ./config/dockercompose/grafana/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor metricsSummary
+      - GF_INSTALL_PLUGINS=https://storage.googleapis.com/integration-artifacts/grafana-exploretraces-app/grafana-exploretraces-app-latest.zip;grafana-traces-app
+    depends_on:
+      - prometheus
+      - tempo
+
+networks:
+  default:
+    name: dev_lite_net
